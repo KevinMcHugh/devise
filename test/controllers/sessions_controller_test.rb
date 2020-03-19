@@ -25,6 +25,25 @@ class SessionsControllerTest < Devise::ControllerTestCase
     end
   end
 
+  test "#create doesn't raise unpermitted params when the params are arrays" do
+    begin
+      subscriber = ActiveSupport::Notifications.subscribe %r{unpermitted_parameters} do |name, start, finish, id, payload|
+        flunk "Unpermitted params: #{payload}"
+      end
+      request.env["devise.mapping"] = Devise.mappings[:user]
+      request.session["user_return_to"] = 'foo.bar'
+      create_user
+      post :create, params: { user: {
+          email: ["wrong@email.com"],
+          password: ["wrongpassword"]
+        }
+      }
+      assert_equal 200, @response.status
+    ensure
+      ActiveSupport::Notifications.unsubscribe(subscriber)
+    end
+  end
+
   test "#create works even with scoped views" do
     swap Devise, scoped_views: true do
       request.env["devise.mapping"] = Devise.mappings[:user]
